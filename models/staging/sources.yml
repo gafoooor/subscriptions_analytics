@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: subscriptions_raw
+    description: Raw subscription billing tables created and loaded by snowflake_sql/01_create_source.sql. Synthetic data only.
+    database: DEMO_DB
+    schema: SUBSCRIPTIONS_RAW
+    tables:
+      - name: raw_customers
+        description: One row per registered customer, including customers who never subscribed.
+        columns:
+          - name: customer_id
+            description: Customer identifier.
+            data_tests: [not_null, unique]
+      - name: raw_plans
+        description: Catalogue of subscription plans and their price per billing cycle.
+        columns:
+          - name: plan_id
+            description: Plan identifier.
+            data_tests: [not_null, unique]
+      - name: raw_subscriptions
+        description: One row per customer subscription to a plan. Status changes overwrite the row and bump updated_at.
+        columns:
+          - name: subscription_id
+            description: Subscription identifier.
+            data_tests: [not_null, unique]
+      - name: raw_invoices
+        description: One row per invoice issued against a subscription. Payment status changes overwrite the row and bump updated_at.
+        columns:
+          - name: invoice_id
+            description: Invoice identifier.
+            data_tests: [not_null, unique]

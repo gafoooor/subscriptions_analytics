@@ -1,0 +1,112 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: One row per customer with trimmed names, normalized emails and upper-case country codes.
+    columns:
+      - name: customer_id
+        description: Customer primary key.
+        data_tests: [not_null, unique]
+      - name: customer_name
+        description: Trimmed full name.
+        data_tests: [not_null]
+      - name: email
+        description: Lower-case email address.
+        data_tests: [not_null, unique]
+      - name: country_code
+        description: ISO-style two-letter country code.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['IN', 'US', 'GB', 'DE']
+
+  - name: stg_plans
+    description: One row per subscription plan with the price for one billing cycle.
+    columns:
+      - name: plan_id
+        description: Plan primary key.
+        data_tests: [not_null, unique]
+      - name: plan_name
+        description: Plan display name.
+        data_tests: [not_null]
+      - name: billing_cycle
+        description: Billing frequency of the plan.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['monthly', 'annual']
+      - name: plan_price
+        description: Price per billing cycle in USD.
+        data_tests: [not_null]
+
+  - name: stg_subscriptions
+    description: One row per customer subscription, with normalized status.
+    columns:
+      - name: subscription_id
+        description: Subscription primary key.
+        data_tests: [not_null, unique]
+      - name: customer_id
+        description: Customer that owns the subscription.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: plan_id
+        description: Plan the subscription is on.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_plans')
+                field: plan_id
+      - name: subscription_status
+        description: Lifecycle status of the subscription.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['active', 'paused', 'cancelled']
+      - name: start_date
+        description: Date the subscription started.
+        data_tests: [not_null]
+      - name: updated_at
+        description: Timestamp of the last change in the source system.
+        data_tests: [not_null]
+
+  - name: stg_invoices
+    description: One row per invoice, with normalized payment status. Includes unpaid, failed and refunded invoices.
+    columns:
+      - name: invoice_id
+        description: Invoice primary key.
+        data_tests: [not_null, unique]
+      - name: subscription_id
+        description: Subscription the invoice was issued against.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_subscriptions')
+                field: subscription_id
+      - name: invoice_date
+        description: Date the invoice was issued.
+        data_tests: [not_null]
+      - name: amount
+        description: Invoice amount before tax, in USD.
+        data_tests: [not_null]
+      - name: tax
+        description: Tax charged on the invoice, in USD.
+        data_tests: [not_null]
+      - name: payment_status
+        description: Current payment outcome of the invoice.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['paid', 'pending', 'failed', 'refunded']
+      - name: updated_at
+        description: Timestamp of the last change in the source system. Drives incremental loads of fct_invoices.
+        data_tests: [not_null]

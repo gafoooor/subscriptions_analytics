@@ -1,0 +1,112 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: >
+      One row per customer, including customers without subscriptions. Rebuilt as a table on every run.
+      Lifetime collected amount counts paid invoices only.
+    columns:
+      - name: customer_id
+        description: Customer primary key.
+        data_tests: [not_null, unique]
+      - name: customer_name
+        description: Customer full name.
+        data_tests: [not_null]
+      - name: email
+        description: Normalized email address.
+        data_tests: [not_null, unique]
+      - name: country_code
+        description: Customer country code.
+        data_tests: [not_null]
+      - name: signed_up_at
+        description: Timestamp the customer signed up.
+        data_tests: [not_null]
+      - name: total_subscriptions
+        description: Count of all subscriptions the customer has ever held.
+        data_tests: [not_null]
+      - name: active_subscriptions
+        description: Count of subscriptions currently in active status.
+        data_tests: [not_null]
+      - name: lifetime_collected_amount
+        description: Sum of amount plus tax for paid invoices, in USD. Zero for customers with no paid invoices.
+        data_tests: [not_null]
+
+  - name: dim_plans
+    description: One row per subscription plan with subscriber counts. Rebuilt as a table on every run.
+    columns:
+      - name: plan_id
+        description: Plan primary key.
+        data_tests: [not_null, unique]
+      - name: plan_name
+        description: Plan display name.
+        data_tests: [not_null]
+      - name: billing_cycle
+        description: Billing frequency of the plan.
+        data_tests: [not_null]
+      - name: plan_price
+        description: Price per billing cycle in USD.
+        data_tests: [not_null]
+      - name: subscription_count
+        description: All subscriptions ever created on this plan.
+        data_tests: [not_null]
+      - name: active_subscription_count
+        description: Subscriptions on this plan that are currently active.
+        data_tests: [not_null]
+
+  - name: fct_invoices
+    description: >
+      One row per invoice. Incremental, merged on invoice_id, so status changes in the source update existing rows.
+      collected_amount is amount plus tax for paid invoices and zero otherwise.
+    columns:
+      - name: invoice_id
+        description: Invoice primary key and incremental merge key.
+        data_tests: [not_null, unique]
+      - name: subscription_id
+        description: Subscription foreign key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_subscriptions')
+                field: subscription_id
+      - name: customer_id
+        description: Customer foreign key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+      - name: plan_id
+        description: Plan foreign key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_plans')
+                field: plan_id
+      - name: invoice_date
+        description: Date the invoice was issued.
+        data_tests: [not_null]
+      - name: payment_status
+        description: Current payment outcome.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['paid', 'pending', 'failed', 'refunded']
+      - name: amount
+        description: Invoice amount before tax, in USD.
+        data_tests: [not_null]
+      - name: tax
+        description: Tax on the invoice, in USD.
+        data_tests: [not_null]
+      - name: total_amount
+        description: Amount plus tax, in USD.
+        data_tests: [not_null]
+      - name: collected_amount
+        description: Amount plus tax for paid invoices, otherwise zero, in USD.
+        data_tests: [not_null]
+      - name: updated_at
+        description: Source last-updated timestamp. Used as the incremental watermark.
+        data_tests: [not_null]
